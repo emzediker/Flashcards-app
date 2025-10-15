@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Flashcards (10 Example Cards)</title>
+<style>
+:root { --radius: 12px; --shadow: 0 4px 14px rgba(0,0,0,0.12); --bg:#fff; --ink:#111; --ink-muted:#555; --border:#ddd; }
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); margin:0; padding:0; }
+.app { max-width:880px; margin:auto; padding:16px; }
+.topbar { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; align-items:center; }
+.controls select, .controls input { padding:6px 8px; border:1px solid var(--border); border-radius:6px; }
+.card { margin-top:20px; position:relative; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; min-height:240px; }
+.fav { position:absolute; top:10px; right:10px; border:none; background:none; font-size:24px; cursor:pointer; }
+.fav[aria-pressed='true'] { color:#e09b00; }
+.nav { display:flex; justify-content:space-between; margin-top:10px; }
+.btn { border:1px solid var(--border); background:#f8f8f8; border-radius:6px; padding:8px 16px; cursor:pointer; }
+.btn:hover { border-color:#aaa; }
+.footer { margin-top:12px; font-size:0.9em; color:var(--ink-muted); }
+</style>
+</head>
+<body>
+<div class='app'>
+<h2>Optometry Flashcards (Favorites Only)</h2>
+<div class='controls'>
+<select id='deckSelect'></select>
+<select id='filterSelect'>
+<option value='all'>All</option>
+<option value='favorites'>Favorites</option>
+</select>
+<input id='searchInput' type='search' placeholder='Search cards...'>
+</div>
+<div class='card' id='card'>
+<div id='front'></div>
+<div id='back' style='display:none; margin-top:10px; color:#333;'></div>
+<button class='fav' id='favBtn' aria-pressed='false'>★</button>
+</div>
+<div class='nav'>
+<button class='btn' id='prevBtn'>Prev</button>
+<button class='btn' id='flipBtn'>Flip</button>
+<button class='btn' id='nextBtn'>Next</button>
+</div>
+<div class='footer'>Favorites are saved locally per device.</div>
+</div>
+<script>
+const ALL_CARDS=[
+{id:'1',deck:'Anterior Segment',front:'Common cause of bacterial conjunctivitis?',back:'Staphylococcus aureus in adults; Haemophilus influenzae in children.'},
+{id:'2',deck:'Anterior Segment',front:'Typical signs of allergic conjunctivitis?',back:'Itching, chemosis, watery discharge, papillae on tarsal conjunctiva.'},
+{id:'3',deck:'Posterior Segment',front:'What is the hallmark of central retinal vein occlusion (CRVO)?',back:'Blood and thunder fundus with diffuse retinal hemorrhages.'},
+{id:'4',deck:'Posterior Segment',front:'Define “cherry red spot” and a condition that presents with it.',back:'Bright fovea on pale retina seen in central retinal artery occlusion (CRAO).'},
+{id:'5',deck:'Neuro‑Ophthalmic Disease',front:'What finding suggests optic neuritis over ischemic optic neuropathy?',back:'Pain on eye movement and visual recovery over weeks.'},
+{id:'6',deck:'Binocular Vision',front:'Define suppression.',back:'Cortical inhibition of one eye’s input to prevent diplopia.'},
+{id:'7',deck:'Contact Lens',front:'Best lens type for keratoconus?',back:'Rigid gas permeable (RGP) or scleral lens for irregular cornea.'},
+{id:'8',deck:'Glaucoma',front:'What does an arcuate scotoma correspond to anatomically?',back:'Damage to retinal nerve fiber layer arching from the optic disc.'},
+{id:'9',deck:'Refraction',front:'What type of astigmatism has both meridians myopic?',back:'Compound myopic astigmatism.'},
+{id:'10',deck:'Systemic Disease',front:'Which systemic condition is linked with Roth spots?',back:'Bacterial endocarditis.'}
+];
+let currentDeck=null,viewCards=[],idx=0,favs=new Set();
+const els={deckSelect:document.getElementById('deckSelect'),filter:document.getElementById('filterSelect'),
+search:document.getElementById('searchInput'),front:document.getElementById('front'),back:document.getElementById('back'),
+favBtn:document.getElementById('favBtn')};
+function loadFavs(deck){try{return new Set(JSON.parse(localStorage.getItem('fav_'+deck)||'[]'));}catch{return new Set();}}
+function saveFavs(deck){localStorage.setItem('fav_'+deck,JSON.stringify(Array.from(favs)));}
+function renderCard(){const c=viewCards[idx];if(!c){els.front.innerHTML='<em>No cards.</em>';els.back.innerHTML='';return;}
+els.front.innerText=c.front;els.back.innerText=c.back;els.favBtn.setAttribute('aria-pressed',favs.has(c.id));}
+function applyFilters(){const q=els.search.value.toLowerCase();const favOnly=els.filter.value==='favorites';viewCards=ALL_CARDS.filter(c=>(!currentDeck||c.deck===currentDeck)&&(!q||(c.front+c.back).toLowerCase().includes(q))&&(!favOnly||favs.has(c.id)));idx=Math.min(idx,Math.max(0,viewCards.length-1));renderCard();}
+function flip(){els.back.style.display=els.back.style.display==='none'?'block':'none';}
+function next(){if(!viewCards.length)return;idx=(idx+1)%viewCards.length;els.back.style.display='none';renderCard();}
+function prev(){if(!viewCards.length)return;idx=(idx-1+viewCards.length)%viewCards.length;els.back.style.display='none';renderCard();}
+function toggleFav(){if(!viewCards.length)return;const c=viewCards[idx];if(favs.has(c.id))favs.delete(c.id);else favs.add(c.id);saveFavs(currentDeck);renderCard();}
+function init(){const decks=[...new Set(ALL_CARDS.map(c=>c.deck))];decks.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;els.deckSelect.appendChild(o);});currentDeck=decks[0];favs=loadFavs(currentDeck);applyFilters();}
+els.deckSelect.onchange=()=>{currentDeck=els.deckSelect.value;favs=loadFavs(currentDeck);applyFilters();};
+els.filter.onchange=applyFilters;els.search.oninput=applyFilters;
+document.getElementById('flipBtn').onclick=flip;document.getElementById('nextBtn').onclick=next;document.getElementById('prevBtn').onclick=prev;els.favBtn.onclick=toggleFav;
+window.onload=init;
+</script>
+</body>
+</html>
